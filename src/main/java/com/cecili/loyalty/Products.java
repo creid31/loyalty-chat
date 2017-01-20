@@ -37,7 +37,7 @@ public class Products {
     }
 
     /**
-     * @param Barcode id
+     * @param id Barcode id of product
      * @return Product with the given barcode id
      */
     public Product getProduct(String id) {

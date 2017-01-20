@@ -50,7 +50,7 @@ public class Discount implements Serializable {
     }
 
     /**
-     * @return the provider
+     * @return the provider of the discount
      */
     public String getProvider() {
         return provider;
@@ -58,12 +58,13 @@ public class Discount implements Serializable {
 
     @Override
     public String toString() {
-        StringBuilder builder = new StringBuilder(">Discount for ");
+        StringBuilder builder = new StringBuilder(">>Discount for ");
         builder.append(type.toString());
-        builder.append(" with a discount of $");
-        builder.append(discount);
         builder.append(" from loyalty provider ");
         builder.append(provider);
+        builder.append("<br> > $");
+        builder.append(discount);
+        builder.append("<br>");
         return builder.toString();
     }
 }

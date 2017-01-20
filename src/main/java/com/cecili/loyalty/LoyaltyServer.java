@@ -24,6 +24,9 @@ import io.vertx.ext.web.handler.sockjs.SockJSHandler;
  */
 public class LoyaltyServer extends AbstractVerticle {
 
+    /**
+     * Map of users to their cart balances; hazelcast instance
+     */
     private final Map<String, Double> cartBalances;
 
     private final Products prodDb = new Products();
@@ -35,9 +38,6 @@ public class LoyaltyServer extends AbstractVerticle {
     }
     @Override
     public void start() throws Exception {
-
-        // String name = config().getString("name", "World");
-        // vertx.createHttpServer().requestHandler(req -> req.response().end("Hello " + name + "!")).listen(8080);
         Router router = Router.router(vertx);
 
         // Allow events for the designated addresses in/out of the event bus bridge
@@ -64,18 +64,25 @@ public class LoyaltyServer extends AbstractVerticle {
             String user = data[0].trim();
             String id = data[1].trim();
             Product product = prodDb.getProduct(id);
-            Double balance = cartBalances.getOrDefault(user, 0.00);
-            balance += product.getPrice();
-            eb.publish("balance.to.client", product.toString());
-            Discount discount = discountDb.getDiscount(product.getType());
-            balance -= discount.getDiscount();
-            eb.publish("balance.to.client", "Discount applied: " + discount.toString());
-            eb.publish("balance.to.client", "Current balance is $" + balance.toString());
-            cartBalances.put(user, balance);
-            // // Create a timestamp string
-            // String timestamp = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM).format(Date.from(Instant.now()));
-            // // Send the message back out to all clients with the timestamp prepended.
-            // eb.publish("balance.to.client", timestamp + ": " + message.body());
+            if (product != null) {
+                // Add product to balance and print new product's price
+                Double balance = cartBalances.getOrDefault(user, 0.00);  
+                balance += product.getPrice();
+                eb.publish("balance.to.client", product.toString());
+
+                // Add discount to balance and print discount's price
+                Discount discount = discountDb.getDiscount(product.getType());
+                balance -= discount.getDiscount();
+                eb.publish("balance.to.client", discount.toString());
+
+                // Print the user's current price and update in hazelcast instance
+                eb.publish("balance.to.client", ">>Current balance for user " + user);
+                eb.publish("balance.to.client", "<br> > $" + balance.toString() + "<br>");
+                cartBalances.put(user, balance);
+            } else{
+                eb.publish("balance.to.client", "Product provided was not found in out system. Please try again.<br>");
+            }
+
         });
 
     }

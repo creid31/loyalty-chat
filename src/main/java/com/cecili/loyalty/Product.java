@@ -46,21 +46,21 @@ public class Product implements Serializable {
     }
 
     /**
-     * @return the price
+     * @return the current price of product
      */
     public Double getPrice() {
         return price;
     }
 
     /**
-     * @return the name
+     * @return the name of product
      */
     public String getName() {
         return name;
     }
 
     /**
-     * @return the barcode id of product
+     * @return the barcode id of product (i.e. UPC758149170596)
      */
     public String getBarcodeId() {
         return barcodeId;
@@ -76,14 +76,14 @@ public class Product implements Serializable {
     }
 
     /**
-     * @return the type
+     * @return type the product's category type
      */
     public ProductType getType() {
         return type;
     }
 
     /**
-     * @param type the type to set
+     * @param type the new category type for product
      */
     public void setType(ProductType type) {
         this.type = type;
@@ -95,10 +95,11 @@ public class Product implements Serializable {
         builder.append(name);
         builder.append(" with barcode ");
         builder.append(barcodeId);
-        builder.append(" price $");
-        builder.append(price);
         builder.append(" of type ");
         builder.append(type.toString());
+        builder.append("<br> > $");
+        builder.append(price);
+        builder.append("<br>");
         return builder.toString();
     }
 }
