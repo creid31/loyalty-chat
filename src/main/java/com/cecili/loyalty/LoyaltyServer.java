@@ -4,6 +4,10 @@
 package com.cecili.loyalty;
 
 import java.util.Map;
+import java.util.Properties;
+
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
@@ -61,28 +65,52 @@ public class LoyaltyServer extends AbstractVerticle {
         eb.consumer("product.to.server").handler(message -> {
             String msg = message.body().toString();
             String[] data = msg.split(":");
-            String user = data[0].trim();
-            String id = data[1].trim();
-            Product product = prodDb.getProduct(id);
-            if (product != null) {
-                // Add product to balance and print new product's price
-                Double balance = cartBalances.getOrDefault(user, 0.00);  
-                balance += product.getPrice();
-                eb.publish("balance.to.client", product.toString());
+            // Save type of product to be counted down stream by storm
+            String typeToCount;
 
-                // Add discount to balance and print discount's price
-                Discount discount = discountDb.getDiscount(product.getType());
-                balance -= discount.getDiscount();
-                eb.publish("balance.to.client", discount.toString());
+            if (data.length < 2) {
+                eb.publish("balance.to.client", "User or product code was not provided. Both are required. Please try again.<br>");
+                typeToCount = "USAGE_FAILURE";
+            } else {
+                String user = data[0].trim();
+                String id = data[1].trim();
+                Product product = prodDb.getProduct(id);
+                if (product != null) {
+                    // Add product to balance and print new product's price
+                    Double balance = cartBalances.getOrDefault(user, 0.00);
+                    balance += product.getPrice();
+                    eb.publish("balance.to.client", product.toString());
 
-                // Print the user's current price and update in hazelcast instance
-                eb.publish("balance.to.client", ">>Current balance for user " + user);
-                eb.publish("balance.to.client", "<br> > $" + balance.toString() + "<br>");
-                cartBalances.put(user, balance);
-            } else{
-                eb.publish("balance.to.client", "Product provided was not found in out system. Please try again.<br>");
+                    // Add discount to balance and print discount's price
+                    Discount discount = discountDb.getDiscount(product.getType());
+                    balance -= discount.getDiscount();
+                    eb.publish("balance.to.client", discount.toString());
+
+                    // Print the user's current price and update in hazelcast instance
+                    eb.publish("balance.to.client", ">>Current balance for user " + user);
+                    eb.publish("balance.to.client", "<br> > $" + balance.toString() + "<br>");
+                    cartBalances.put(user, balance);
+                    typeToCount = product.getType().toString();
+                } else {
+                    eb.publish("balance.to.client", "Product provided was not found in out system. Please try again.<br>");
+                    typeToCount = "UNKNOWN";
+                }
             }
 
+
+            // Publish message using kafka producer
+            Properties props = new Properties();
+
+            props.put("metadata.broker.list", "localhost:9092");
+            props.put("request.required.acks", "1");
+            props.put("bootstrap.servers", "localhost:9092");
+            props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+
+            KafkaProducer<String, String> producer = new KafkaProducer<String, String>(props);
+
+            producer.send(new ProducerRecord<String, String>("loyalty-chat", typeToCount));
+            producer.close();
         });
 
     }
